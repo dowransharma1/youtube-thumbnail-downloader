@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello, World!</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+      <h1 class="title">Hello World! </h1>
+      <p id="currentTime"></p>
+      <script src="script.js"></script>
+  </body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>YouTube Thumbnail Downloader</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f4f8;
+    margin: 0;
+    padding: 20px;
+    display: flex; 
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  h1 {
+    color: #ff0000;
+    margin-bottom: 10px;
+  }
+  .container {
+    background: white;
+    padding: 20px 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    max-width: 400px;
+    width: 100%;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #ccc;
+    font-size: 1rem;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+    outline: none;
+    transition: border-color 0.3s ease;
+  }
+  input[type="text"]:focus {
+    border-color: #ff0000;
+  }
+  button {
+    background: #ff0000;
+    color: white;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #cc0000;
+  }
+  .thumbnail-container {
+    margin-top: 20px;
+    text-align: center;
+  }
+  .thumbnail-container img {
+    max-width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+  .download-btn {
+    margin-top: 15px;
+    background: #0073e6;
+    padding: 10px 18px;
+    border: none;
+    color: white;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .download-btn:hover {
+    background: #005bb5;
+  }
+  .error {
+    color: #cc0000;
+    margin-top: 10px;
+  }
+  @media (max-width: 450px) {
+    .container {
+      padding: 15px 20px;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>YouTube Thumbnail Downloader</h1>
+  <div class="container">
+    <input type="text" id="youtubeUrl" placeholder="Paste YouTube video URL here" />
+    <button id="downloadBtn">Get Thumbnails</button>
+    <div class="error" id="errorMsg"></div>
+    <div class="thumbnail-container" id="thumbnailContainer" style="display:none;">
+      <h3>Available Thumbnails</h3>
+      <div id="thumbnails"></div>
+    </div>
+  </div>
+
+<script>
+  const downloadBtn = document.getElementById('downloadBtn');
+  const youtubeUrlInput = document.getElementById('youtubeUrl');
+  const errorMsg = document.getElementById('errorMsg');
+  const thumbnailContainer = document.getElementById('thumbnailContainer');
+  const thumbnailsDiv = document.getElementById('thumbnails');
+
+  // YouTube thumbnail URLs by quality
+  const thumbnailQualities = [
+    { label: 'Max Resolution', url: id => `https://img.youtube.com/vi/${id}/maxresdefault.jpg` },
+    { label: 'Standard Definition', url: id => `https://img.youtube.com/vi/${id}/sddefault.jpg` },
+    { label: 'High Quality', url: id => `https://img.youtube.com/vi/${id}/hqdefault.jpg` },
+    { label: 'Medium Quality', url: id => `https://img.youtube.com/vi/${id}/mqdefault.jpg` },
+    { label: 'Default', url: id => `https://img.youtube.com/vi/${id}/default.jpg` },
+  ];
+
+  function extractVideoID(url) {
+    try {
+      const urlObj = new URL(url.trim());
+      if (urlObj.hostname.includes('youtube.com')) {
+        return urlObj.searchParams.get('v');
+      } else if (urlObj.hostname === 'youtu.be') {
+        return urlObj.pathname.slice(1);
+      }
+    } catch {
+      // Not a valid URL
+    }
+    return null;
+  }
+
+  async function checkImageExists(url) {
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  downloadBtn.addEventListener('click', async () => {
+    errorMsg.textContent = '';
+    thumbnailsDiv.innerHTML = '';
+    thumbnailContainer.style.display = 'none';
+
+    const url = youtubeUrlInput.value;
+    if (!url) {
+      errorMsg.textContent = 'Please paste a YouTube video URL.';
+      return;
+    }
+
+    const videoID = extractVideoID(url);
+    if (!videoID) {
+      errorMsg.textContent = 'Invalid YouTube URL.';
+      return;
+    }
+
+    // Check which thumbnails exist and show them
+    let foundAny = false;
+    for (const quality of thumbnailQualities) {
+      const thumbUrl = quality.url(videoID);
+      const exists = await checkImageExists(thumbUrl);
+      if (exists) {
+        foundAny = true;
+        const img = document.createElement('img');
+        img.src = thumbUrl;
+        img.alt = `${quality.label} Thumbnail`;
+        img.loading = 'lazy';
+        img.style.maxHeight = '180px';
+        img.style.margin = '10px';
+        img.style.cursor = 'pointer';
+        img.title = `Click to download ${quality.label}`;
+
+        // Create download link wrapper
+        const link = document.createElement('a');
+        link.href = thumbUrl;
+        link.download = `${videoID}_${quality.label.replace(/\s+/g, '_').toLowerCase()}.jpg`;
+        link.appendChild(img);
+
+        thumbnailsDiv.appendChild(link);
+      }
+    }
+
+    if (!foundAny) {
+      errorMsg.textContent = 'No thumbnails found for this video.';
+      return;
+    }
+    thumbnailContainer.style.display = 'block';
+  });
+</script>
+</body>
+</html>
